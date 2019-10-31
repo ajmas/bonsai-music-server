@@ -4,8 +4,6 @@ import path from 'path';
 import { promisify } from 'util';
 import crypto from 'crypto';
 import Tingo from 'tingodb';
-import { rejects } from 'assert';
-import { resolve } from 'url';
 
 const TingoDB = Tingo().Db;
 const fsWriteFile = promisify(fs.writeFile);
@@ -113,16 +111,19 @@ class Store {
     async findTracks(filter: any = {}, options: any = {}) {
         const skip = options.skip || 1;
         const limit = options.limit || 20;
-
+        const sortBy = options.sortBy || 'name';
+        console.log('>>>', sortBy);
         // if (!filter || Object.keys(filter).length === 0) {
         //     // return this.db.find({}).promise();
         // } else if (filter.name) {
         //     // return this.db.find({ name: filter.name });
         // } else {
             const Tracks = this.db.collection('tracks');
-            return new Promise((resolve, reject) => {
+            let tracks;
+            let total;
+            tracks = await new Promise((resolve, reject) => {
                 try {
-                    Tracks.find().skip(skip).limit(limit).toArray((error, entries) => {
+                    Tracks.find().sort([sortBy]).skip(skip).limit(limit).toArray((error, entries) => {
                         if (error) {
                             reject(error);
                         } else {
@@ -138,6 +139,27 @@ class Store {
                     reject(error);
                 }
             });
+
+            total = await new Promise((resolve, reject) => {
+                try {
+                    Tracks.find().count((error, count) => {
+                        console.log('XXXX', count);
+                        if (error) {
+                            reject(error);
+                        } else {
+                            resolve(count);
+                        }
+                    })
+                } catch (error) {
+                    reject(error);
+                }
+            });
+
+            console.log('total', total);
+            return {
+                tracks,
+                total
+            }
         // }
     }
 

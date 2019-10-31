@@ -5,13 +5,14 @@
   "main": "index.js",
   "scripts": {
     "indexer": "ts-node ./src/MusicIndexer",
-    "server": "nodemon --inspect=56000 -r ts-node/register ./src/SimpleMediaServer",
+    "server": "nodemon -V --inspect=56002 -r ts-node/register src/SimpleMediaServer",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "commander": "^3.0.2",
     "cors": "^2.8.5",
     "express": "^4.17.1",
     "jsmediatags": "^3.9.2",

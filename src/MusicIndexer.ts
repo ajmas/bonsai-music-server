@@ -2,6 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
 import jsmediatags from 'jsmediatags';
+import commander from 'commander';
+
 import crypto from 'crypto';
 // import NoSQL from 'nosql';
 // import lowdb from 'lowdb';
@@ -132,20 +134,20 @@ async function initStore() {
     store = new Store('./data');
 }
 
-// async function find(trackName) {
-//     return db.find({ name: trackName });
-// }
-
 async function start(filepath) {
     try {
         await initStore();
 
-        // console.log(await find('Your Mind'));
-        walkTree(filepath);
+        await walkTree(filepath);
     } catch (error) {
         console.log(error);
         process.exit(1);
     }
 }
 
-start('/Users/ajmas/Music/iTunes/iTunes\ Media/Music/');
+if (process.argv.length < 3) {
+    console.error('Please specify the path to index');
+    process.exit(1);
+}
+
+start(process.argv[2]);

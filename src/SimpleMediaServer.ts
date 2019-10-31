@@ -13,125 +13,6 @@ const fsStat = promisify(fs.stat);
 const app = express();
 let store;
 
-// let allTracks = [];
-// let allAlbumNames = [];
-// let allAlbums = {};
-// let allTracksById = {};
-
-let trackId = 10000;
-function createTrackId() {
-    return ++trackId;
-}
-
-// function loadData(tracks?) {
-//     if (!tracks) {
-//         const rawLibrary = JSON.parse(fs.readFileSync('./library.json', 'utf8'));
-//         if (rawLibrary && rawLibrary.Tracks) {
-//             tracks = rawLibrary.Tracks;
-//         }
-//     }
-
-//     if (tracks) {
-//         const albums = {};
-//         const keys = Object.keys(tracks);
-//         keys.forEach((key) => {
-//             let albumName = tracks[key].Album;
-//             let album = albums[albumName];
-//             if (!album) {
-//                 albums[albumName] = {
-//                     Name: tracks[key].Album,
-//                     Tracks: [{ Name: tracks[key].Name }]
-//                 }
-//             } else {
-//                 album.Tracks.push({
-//                     Name: tracks[key].Name
-//                 })
-//             }
-//             allTracks.push(tracks[key]);
-//         });
-//         allAlbumNames = Object.keys(albums).sort();
-//         allAlbums = albums;
-//         allTracksById = tracks;
-//         console.log(',,,', allAlbumNames.length);
-//     }
-// }
-
-// async function readTags(filepath) {
-//     let trackData;
-//     // const fields = ['title', 'artist', 'Artist'];
-//     try {
-//         let tags: any = await new Promise((resolve, reject) => {
-//             jsmediatags.read(filepath, {
-//                 onSuccess: function(tag) {
-//                     resolve(tag);
-//                 },
-//                 onError: function(error) {
-//                     reject(error);
-//                 }
-//             });
-//         });
-
-//         // console.log(tags.tags);
-//         if (tags && tags.tags) {
-//             tags = tags.tags;
-//             trackData = {
-//                 'Track ID': createTrackId(),
-//                 Name: tags.title,
-//                 artist: tags.artist,
-//                 Album: tags.album,
-//                 year: tags.year,
-//                 track: tags.track,
-//                 genre: tags.genre,
-//                 path: filepath
-//             }
-//             console.log(`   name: ${trackData.Name} - album: ${trackData.Album}`);
-//         }
-//         return trackData;
-//     } catch (error) {
-//         console.log(filepath);
-//         console.log(error);
-//         // throw error;
-//     }
-
-// }
-
-// async function scanDir(basePath) {
-//     const supportedExts = ['.m4a', '.mp3', '.mp4'];
-
-//     let tracks = {};
-//     let pathsToVisit = [];
-//     pathsToVisit.push(basePath);
-
-//     while (pathsToVisit.length > 0) {
-//         const folderPath = pathsToVisit.pop();
-
-//         const entries = await readdir(folderPath);
-//         for (let i=0; i < entries.length; i++) {
-//             const entryPath = path.join(folderPath, entries[i]);
-//             const stats = await fsStat(entryPath);
-//             if (stats.isDirectory()) {
-//                 pathsToVisit.push(entryPath);
-//             } else if (stats.isFile()) {
-//                 // TODO symlinks
-//                 if (entries[i].indexOf('.') > 0) {
-//                     const ext = path.extname(entries[i]);
-//                     if (supportedExts.indexOf(ext) > -1) {
-//                         console.log('Reading: ', entries[i]);
-//                         const tags = await readTags(entryPath);
-//                         if (tags) {
-//                             tracks[tags['Track ID']] = tags;
-//                         }
-//                     }
-
-//                 }
-//             }
-//             console.log(entries[i], stats.isDirectory());
-//         }
-//     }
-
-//     return tracks;
-// }
-
 function externaliseTrack(track) {
     if (track) {
         let cover;
@@ -158,18 +39,45 @@ function externaliseTrack(track) {
 function initRoutes() {
     app.get('/tracks', async (req, res, next) => {
         try {
+            let page = req.query.page || 1;
+            let limit = req.query.limit || 20;
+            let offset = req.query.offset;
+            let sortBy = req.query.sort;
 
-            let tracks = await store.findTracks({ query: req.query.filter });
+            if (offset) {
+                limit = parseInt(limit);
+                offset = parseInt(offset);
+                page = offset / limit;
+            } else {
+                limit = parseInt(limit);
+                page = parseInt(page);
+                offset = limit * (page - 1);
+            }
 
-            console.log(tracks);
+            const options = {
+                limit,
+                skip: offset,
+                sortBy
+            };
 
-            tracks = tracks.map((track) => {
+            console.log(options);
+
+            let results = await store.findTracks({ query: req.query.filter }, options);
+
+            console.log(results.tracks.length, results.total);
+
+            const tracks = results.tracks.map((track) => {
                 return externaliseTrack(track);
             })
 
+            const totalPages = Math.ceil(results.total / limit);
+
             res.json({
                 metadata: {
-                    total: tracks.length
+                    total: results.total,
+                    page,
+                    totalPages,
+                    limit
                 },
                 entries: tracks
             });
