@@ -15,13 +15,15 @@
     "commander": "^3.0.2",
     "cors": "^2.8.5",
     "express": "^4.17.1",
-    "jsmediatags": "^3.9.2",
     "lowdb": "^1.0.0",
+    "mime-types": "^2.1.24",
+    "music-metadata": "^4.8.4",
     "nosql": "^6.1.0",
     "sqlite3": "^4.1.0",
     "tingodb": "^0.6.1"
   },
   "devDependencies": {
+    "@types/mime-types": "^2.1.0",
     "@types/node": "^12.11.1",
     "nodemon": "^1.19.4",
     "ts-node": "^8.4.1",
