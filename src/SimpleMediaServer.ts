@@ -19,11 +19,13 @@ function externaliseTrack(track) {
         if ( track.cover ) {
             cover = `http://localhost:8091/tracks/${track._id}/cover`;
         }
+
         return {
             id: track._id,
             name: track.name,
             artist: track.artist,
             album: track.album,
+            albumArtist: track.albumartist,
             year: track.year,
             track: track.track,
             format: track.path.substring(track.path.lastIndexOf('.') + 1),

@@ -4,11 +4,42 @@ import path from 'path';
 import { promisify } from 'util';
 import crypto from 'crypto';
 import Tingo from 'tingodb';
-import { ITrackMetadata } from './MusicIndexer';
+import ITrackMetadata from './ITrackMetadata';
 import * as mime from 'mime-types';
 
 const TingoDB = Tingo().Db;
 const fsWriteFile = promisify(fs.writeFile);
+const fsMkdir = promisify(fs.mkdir);
+
+async function upsert(db, collection, selector, data) {
+    return new Promise((resolve, reject) => {
+        const Collection = db.collection(collection);
+        Collection.update(selector, data, { upsert:true, new:true },   (error, entry) => {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(entry);
+            }
+        });
+    })
+}
+
+async function countEntries(db, collection, query) {
+    return await new Promise((resolve, reject) => {
+        try {
+            const Collection = db.collection(collection);
+            Collection.find(query).count((error, count) => {
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(count);
+                }
+            })
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
 
 class Store {
 
@@ -16,16 +47,17 @@ class Store {
     coversPath: string;
     db: any;
 
-    typeMap = {
-        'image/jpeg': '.jpg',
-        'image/png': '.png',
-        'image/gif': '.gif',
-    };
-
     constructor(storePath) {
         this.storePath = path.resolve(storePath);
         this.coversPath = path.join(this.storePath, 'covers');
         // TODO create folder
+
+        const dbPath = path.join(storePath,'/media-catalogue.tingo')
+
+        fsMkdir(dbPath, { recursive: true });
+        fsMkdir(this.coversPath, { recursive: true });
+
+
         this.db = new TingoDB(path.join(storePath,'/media-catalogue.tingo'), {});
 
     }
@@ -60,48 +92,31 @@ class Store {
             const imgData = Buffer.from(trackMetadata.picture[0].data);
             const ext = mime.extension(trackMetadata.picture[0].format);
             const checksum = await this.generateChecksum(imgData);
-            const filename = `${checksum}${ext}`;
+            const filename = `${checksum}.${ext}`;
 
             this.writeImage(filename, imgData);
             trackMetadata.cover = filename;
             delete trackMetadata.picture;
         }
 
-        console.log('adding ', trackMetadata.name);
+        console.log(`DEBUG adding ${trackMetadata.name} by ${trackMetadata.artist}`);
 
-        return await new Promise((resolve, reject) => {
-            const Tracks = this.db.collection('tracks');
-            Tracks.update({ path: trackMetadata.path }, trackMetadata, { upsert:true, new:true },   (error, entry) => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve(entry);
-                }
-            });
-        }).then((track) => {
-            return new Promise((resolve, reject) => {
-                const Albums = this.db.collection('albums');
-                const album = {
-                    name: trackMetadata.album,
-                    // track: track._id,
-                    cover: trackMetadata.cover,
-                    artist: trackMetadata.artist
-                };
-                Albums.update({ name: album.name }, album, { upsert:true, new:true }, (error, entry) => {
-                    if (error) {
-                        reject(error);
-                    } else {
-                        resolve(entry);
-                    }
-                });
-            });
-        });
+        await upsert(this.db, 'tracks', { path: trackMetadata.path }, trackMetadata );
+        const album = {
+            name: trackMetadata.album,
+            // track: track._id,
+            cover: trackMetadata.cover,
+            artist: trackMetadata.albumartist
+        };
+
+        await upsert(this.db, 'album', { name: album.name }, album );
     }
 
     async findTracks(filter: any = {}, options: any = {}) {
         const skip = options.skip || 1;
         const limit = options.limit || 20;
         const sortBy = options.sortBy || 'name';
+        const query = {};
         console.log('>>>', sortBy);
         // if (!filter || Object.keys(filter).length === 0) {
         //     // return this.db.find({}).promise();
@@ -113,7 +128,7 @@ class Store {
             let total;
             tracks = await new Promise((resolve, reject) => {
                 try {
-                    Tracks.find().sort([sortBy]).skip(skip).limit(limit).toArray((error, entries) => {
+                    Tracks.find(query).sort([sortBy]).skip(skip).limit(limit).toArray((error, entries) => {
                         if (error) {
                             reject(error);
                         } else {
@@ -130,20 +145,7 @@ class Store {
                 }
             });
 
-            total = await new Promise((resolve, reject) => {
-                try {
-                    Tracks.find().count((error, count) => {
-                        console.log('XXXX', count);
-                        if (error) {
-                            reject(error);
-                        } else {
-                            resolve(count);
-                        }
-                    })
-                } catch (error) {
-                    reject(error);
-                }
-            });
+            total = await countEntries(this.db, 'Tracks', query);
 
             console.log('total', total);
             return {

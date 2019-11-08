@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
-import mm from 'music-metadata';
+import * as MusicMetadata from 'music-metadata';
+import ITrackMetadata from './ITrackMetadata';
 import commander from 'commander';
 
 import crypto from 'crypto';
@@ -10,8 +11,6 @@ import crypto from 'crypto';
 // import FileSync from 'lowdb/adapters/FileSync';
 import Store from './Store';
 
-// const fsWriteFile = promisify(fs.writeFile);
-// const fsReadFile = promisify(fs.readFile);
 const fsStat = promisify(fs.stat);
 const fsReaddir = promisify(fs.readdir);
 
@@ -25,14 +24,6 @@ function createTrackId() {
     return ++trackId;
 }
 
-export interface ITrackMetadata extends mm.ICommonTagsResult {
-    name: string;
-    path: string;
-    fileCreatedAt?: Date;
-    fileUpdatedAt?: Date;
-    addedAt?: Date;
-    cover?: string;
-}
 
 // ref: https://gist.github.com/zfael/a1a6913944c55843ed3e999b16350b50
 // async function generateChecksum(data, algorithm?, encoding?) {
@@ -56,10 +47,8 @@ export interface ITrackMetadata extends mm.ICommonTagsResult {
 // }
 
 async function extractMetdata(filepath: string): Promise<ITrackMetadata> {
-    let trackMetadata;
-
     try {
-        const metadata = await mm.parseFile(filepath);
+        const metadata = await MusicMetadata.parseFile(filepath);
         return {path: filepath, name: metadata.common.title, ...metadata.common};
     } catch (error) {
         console.log(`Failed to parse ${filepath}: ${error.message}`);
@@ -88,7 +77,6 @@ async function walkTree(filepath) {
                     if (supportedExts.indexOf(ext) > -1) {
                         const metadata = await extractMetdata(entryPath);
                         // const checksum = await generateFileChecksum(entryPath);
-
                         if (metadata) {
                             try {
                                 const stat = await fsStat(entryPath);
