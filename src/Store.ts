@@ -4,6 +4,8 @@ import path from 'path';
 import { promisify } from 'util';
 import crypto from 'crypto';
 import Tingo from 'tingodb';
+import { ITrackMetadata } from './MusicIndexer';
+import * as mime from 'mime-types';
 
 const TingoDB = Tingo().Db;
 const fsWriteFile = promisify(fs.writeFile);
@@ -48,27 +50,15 @@ class Store {
             .digest(encoding || 'hex');
     }
 
-    private getFileExt(format: string) {
-        if (!format || format.trim().length === 0) {
-            // console.log('getFileExt: A - ', format);
-            return '.unkown';
-        } else if (format.indexOf('/') > - 1) {
-            return this.typeMap[format];
-        } else {
-            // console.log('getFileExt: B - ', format);
-            return `.${format.toLowerCase()}`;
-        }
-    }
-
     private async writeImage(name, data) {
         const imagePath = path.join(this.coversPath, name);
         fsWriteFile(imagePath, data);
     }
 
-    async addTrack(trackMetadata) {
-        if (trackMetadata.picture) {
-            const imgData = Buffer.from(trackMetadata.picture.data);
-            let ext = this.getFileExt(trackMetadata.picture.format);
+    async addTrack(trackMetadata: ITrackMetadata) {
+        if (trackMetadata.picture && trackMetadata.picture.length >= 1) {
+            const imgData = Buffer.from(trackMetadata.picture[0].data);
+            const ext = mime.extension(trackMetadata.picture[0].format);
             const checksum = await this.generateChecksum(imgData);
             const filename = `${checksum}${ext}`;
 

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
-import jsmediatags from 'jsmediatags';
+import mm from 'music-metadata';
 import commander from 'commander';
 
 import crypto from 'crypto';
@@ -25,6 +25,15 @@ function createTrackId() {
     return ++trackId;
 }
 
+export interface ITrackMetadata extends mm.ICommonTagsResult {
+    name: string;
+    path: string;
+    fileCreatedAt?: Date;
+    fileUpdatedAt?: Date;
+    addedAt?: Date;
+    cover?: string;
+}
+
 // ref: https://gist.github.com/zfael/a1a6913944c55843ed3e999b16350b50
 // async function generateChecksum(data, algorithm?, encoding?) {
 //     console.log(data);
@@ -46,43 +55,14 @@ function createTrackId() {
 //     return await hash.digest('hex');
 // }
 
-async function extractTags(filepath: string) {
-    return new Promise((resolve, reject) => {
-        jsmediatags.read(filepath, {
-            onSuccess: function(tag) {
-                resolve(tag);
-            },
-            onError: function(error) {
-                reject(error);
-            }
-        });
-    });
-}
-
-async function extractMetdata(filepath: string) {
+async function extractMetdata(filepath: string): Promise<ITrackMetadata> {
     let trackMetadata;
 
     try {
-        let tags: any = await extractTags(filepath);
-
-        if (tags && tags.tags) {
-            tags = tags.tags;
-            trackMetadata = {
-                name: tags.title,
-                artist: tags.artist,
-                album: tags.album,
-                year: tags.year,
-                track: tags.track,
-                genre: tags.genre,
-                path: filepath,
-                picture: tags.picture
-            }
-            // console.log(`   name: ${trackMetadata.name} - album: ${trackMetadata.album}`);
-        }
-        return trackMetadata;
+        const metadata = await mm.parseFile(filepath);
+        return {path: filepath, name: metadata.common.title, ...metadata.common};
     } catch (error) {
-        console.log('ERR', filepath);
-        console.log(error);
+        console.log(`Failed to parse ${filepath}: ${error.message}`);
         // throw error;
     }
 }
