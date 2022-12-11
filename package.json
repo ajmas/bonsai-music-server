@@ -14,7 +14,7 @@
   "dependencies": {
     "commander": "^3.0.2",
     "cors": "^2.8.5",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "lowdb": "^1.0.0",
     "mime-types": "^2.1.24",
     "music-metadata": "^4.8.4",
